@@ -7,7 +7,7 @@ on: workflow_dispatch
 concurrency: { group: "wheels-${{ github.ref }}", cancel-in-progress: true } # newest pins win
 
 env:
-  TORCH_CUDA_ARCH_LIST: "8.9;12.0"
+  TORCH_CUDA_ARCH_LIST: "8.6;8.9;12.0"
   BUILD_TARGET: cuda
   DISTUTILS_USE_SDK: "1" # torch refuses to build inside an activated VS env without it
   MAX_JOBS: "2" # nvcc with two archs runs out of RAM on a 2-core runner otherwise
