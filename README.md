@@ -60,6 +60,57 @@
   </tr>
 </table>
 
+## RTX 30 (sm_86) fork
+
+Bu fork, Effigy'nin 3D model adımlarını **RTX 30 serisi** kartlarda da çalıştırır. Orijinal proje CUDA eklentilerini yalnızca 8.9 (RTX 40) ve 12.0 (RTX 50) için derler ve RTX 30'u bilerek reddeder. Bu fork'ta aynı eklentiler 8.6 için de derlenmiştir. Kurulum için [SETUP.md → RTX 30 serisi](SETUP.md#rtx-30-serisi-sm_86-bu-fork-ile-kurulum).
+
+### RTX 3060/3070/3080/3090 için CUDA sm_86 desteği
+
+- `cumesh`, `flex_gemm` ve `o_voxel` wheel'leri `TORCH_CUDA_ARCH_LIST="8.6;8.9;12.0"` ile yeniden derlendi (GitHub Actions, `wheels` iş akışı, [run 43188141518](https://github.com/CakarK/EffigyforRTX30/actions/runs/43188141518)). Kurulu `.pyd` dosyalarında `cuobjdump --list-elf` ile `sm_86`, `sm_89` ve `sm_120` görülür.
+- `server/machine.py` içindeki `MIN_SM` 8.9'dan 8.6'ya indirildi. Böylece "Get started" sayfası ve adımlar 8.6 kartları reddetmez.
+- **Yalnızca RTX 3090 (24 GB) üzerinde denendi.** Aynı mimariyi (sm_86) kullanan diğer kartlar (RTX 3050/3060/3070/3080 ve bazı RTX A-serisi kartlar) için eklentilerin yüklenmesi beklenir, ama denenmedi. Bellek: 3090'da TRELLIS.2 Fast için ölçülen tepe VRAM 7,9 GB. 8 GB'lık kartların yetip yetmediği doğrulanmadı, uygulamanın kendi bellek denetimi karar verir.
+- 8.6'dan eski kartlar (RTX 20, GTX 16 ve altı) hâlâ desteklenmez.
+
+### RTX 3090 üzerinde test edilen özellikler
+
+Makine: RTX 3090 24 GB, Windows 11, sürücü 621.01, 48 GB RAM. Adımlar uygulamanın HTTP API'siyle sırayla çalıştırıldı.
+
+| Özellik | Durum |
+|---|---|
+| Konsept görselleri (Z-Image-Turbo, 4 aday) | Çalıştı |
+| Arka plan kesme (`prep`, BiRefNet) | Çalıştı |
+| Resimden 3D: TRELLIS.2 **Fast** (`trellis2`) | Çalıştı. İlk üretim 758 sn (model yükleme dahil), tepe VRAM 7,89 GB |
+| `clean`, `transform`, `remesh`, `uv`, `bake` (2048), `validate` | Çalıştı |
+| `export` profili `unreal` (LOD'lu FBX + basecolor / normal / ORM dokuları) | Çalıştı (Unreal'e içe aktarma denenmedi) |
+| Dikişsiz doku (`concepts`, `op: tile`, 1024) | Hatasız çalıştı, görsel kalite incelenmedi |
+| Kimodo Python ortamı (`.venv-kimodo`) | Derlendi ve `import kimodo` geçti, hareket üretimi çalıştırılmadı |
+
+**Denenmedi:** Pixal3D (Faithful) ve dört görüntüden 3D, Parts (GeoSAM2), rig ve SkinTokens ile skinning, animasyon, videodan hareket (GEM-X), yazıdan hareket (Kimodo) üretimi, paralaks katmanlar, doku detayı (ControlNet), FLUX ile yeniden poz, piksel sanat ve 2D stiller, Blender canlı bağlantısı, Godot/Unity/web dışa aktarımı.
+
+### Orijinal Effigy'den farkları
+
+Orijinal v0.4.0 ile karşılaştırıldığında değişen tek şey şunlar. Uygulama kodunda (`steps/`, `engine/`) başka değişiklik yoktur.
+
+| Dosya | Değişiklik |
+|---|---|
+| `.github/workflows/wheels.yml` | `TORCH_CUDA_ARCH_LIST`: `"8.9;12.0"` → `"8.6;8.9;12.0"` |
+| `wheels/cumesh-…whl`, `wheels/flex_gemm-…whl`, `wheels/o_voxel-…whl` | 8.6 çekirdekleriyle yeniden derlendi (dosyalar bir miktar büyüdü, ör. cumesh 3,3 → 4,4 MB) |
+| `uv.lock` | Bu üç wheel'in SHA-256 değerleri yenilendi (`uv sync --frozen` için gerekli) |
+| `server/machine.py` | `MIN_SM = 8.6`, ilgili uyarı metinleri |
+| `README.md`, `SETUP.md` | Bu bölüm ve kurulum notları |
+
+### Kurulum adımları ve bilinen kısıtlamalar
+
+Adım adım kurulum: [SETUP.md → RTX 30 serisi](SETUP.md#rtx-30-serisi-sm_86-bu-fork-ile-kurulum).
+
+Bilinen kısıtlamalar:
+
+- Orijinal sürümün zip'i 8.6 wheel'lerini **içermez**. Üzerine yeni orijinal zip açarsanız bu fork'un dosyaları (wheel'ler, `uv.lock`, `machine.py`) ezilir ve 3D adımları yine reddedilir. Güncellemeden sonra SETUP.md'deki adımları tekrarlayın.
+- Yalnızca RTX 3090'da denendi (yukarıdaki liste).
+- Süre (3090'da ölçülen): tek bir parçanın tüm zinciri (konsept → export) yaklaşık 6–8 dakika. İlk üretim model yükleme yüzünden daha uzun, 12 dakikayı geçebilir. İşlerin 10 dakikayı aşması log'a `Timeout (0:10:00)!` izleme dökümü yazdırır, hata değildir.
+- Küçük bir denemede (3 parça) düz paneller (örneğin düz duvar) iyi çıktı. Kapı/pencere boşluklu paneller ve çatı/zemin gibi ince levhalar tek parça olarak bozuk çıktı. Bu bir 8.6 sorunu değil, görselden 3D üretimin sınırı olarak görüldü. Kesin bir ölçüm değildir.
+- Yazıdan hareket (Kimodo) Windows'ta CMake ve bir C++ derleyicisi ister, ayrıntı SETUP.md'de.
+
 ## Capabilities
 
 ### Textures and materials
