@@ -26,10 +26,10 @@ LONG_PATHS = (
 # M46b: our CUDA wheels (cumesh, flex_gemm, o_voxel; .github/workflows/wheels.yml) are built for 8.9 and 12.0 with no
 # PTX, so an RTX 30 card (8.6: the 3090, A5000, A6000) cannot run the steps that load them. The owner, 2026-10-13: no
 # 8.6 build; say so instead of failing in the first generation.
-MIN_SM = 8.9
+MIN_SM = 8.6  # fork: the wheels are also built for 8.6 (RTX 30), see README "RTX 30 (sm_86) fork"
 # not `depth`: its FlexGEMM is the pure-Triton build in .venv-moge, which runs on 8.6
 SM_STEPS = ("trellis2", "clean", "remesh", "uv", "bake")
-UNSUPPORTED = "not supported: the 3D models need an RTX 40 or 50 series card"
+UNSUPPORTED = "not supported: the 3D models need an RTX 30, 40 or 50 series card (compute capability 8.6 or newer)"
 
 
 @functools.cache  # ponytail: read once per app run; a card swapped in needs a restart of the app
@@ -142,7 +142,7 @@ def check() -> list[dict]:
                 "warn",
                 label,
                 f"No 3D model can be made on this card: the 3D model steps are {UNSUPPORTED} (compute "
-                f"capability 8.9 or newer; this card has {cap:g}). Pictures, pixel art, motion and the rest run.",
+                f"capability 8.6 or newer; this card has {cap:g}). Pictures, pixel art, motion and the rest run.",
             )
             big = [b for b in big if b["step"] != "trellis2"] + [
                 {
