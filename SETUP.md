@@ -17,6 +17,60 @@ Steps 1–6 get you generating. Steps 7–8 (Blender live link, an AI agent) are
 
 ---
 
+## RTX 30 serisi (sm_86): bu fork ile kurulum
+
+RTX 3050/3060/3070/3080/3090 gibi 8.6 kartlarda 3D modeller için bu fork'un wheel'leri gerekir (bkz. [README](README.md#rtx-30-sm_86-fork)). Aşağıdaki yol **RTX 3090 üzerinde denenen** yoldur. Bilgisayara yalnızca NVIDIA sürücüsünü (Adım 1) siz kurarsınız.
+
+**Seçenek A (denendi): orijinal zip + fork'tan 5 dosya**
+
+1. Adım 2 ve 4'ü orijinal sürümle yapın: `Effigy-v0.4.0-win64.zip` indirip açın, `run.bat` ile ilk kurulumu bitirin, sonra uygulamayı kapatın.
+2. Aşağıdaki komutları PowerShell'de, uygulama klasöründe çalıştırın (`C:\Effigy` yerine kendi yolunuzu yazın). Fork'tan üç wheel, `uv.lock` ve `server\machine.py` iner:
+
+```powershell
+cd C:\Effigy
+$raw = "https://raw.githubusercontent.com/CakarK/EffigyforRTX30/main"
+foreach ($f in "wheels/cumesh-0.0.1-cp312-cp312-win_amd64.whl", "wheels/flex_gemm-1.0.0-cp312-cp312-win_amd64.whl",
+               "wheels/o_voxel-0.0.1-cp312-cp312-win_amd64.whl", "uv.lock", "server/machine.py") {
+    Invoke-WebRequest "$raw/$f" -OutFile ($f -replace "/", "\")
+}
+```
+
+3. Yeni wheel'leri Python ortamına işleyin (ortam zaten kurulduğu için `run.bat` bunu kendiliğinden yapmayabilir):
+
+```powershell
+.\uv.exe pip install --python .\.venv-ml\Scripts\python.exe --reinstall --no-deps `
+    wheels\cumesh-0.0.1-cp312-cp312-win_amd64.whl `
+    wheels\flex_gemm-1.0.0-cp312-cp312-win_amd64.whl `
+    wheels\o_voxel-0.0.1-cp312-cp312-win_amd64.whl
+```
+
+4. Kontrol: `.\.venv-ml\Scripts\python.exe -m tools.smoke_m1` hatasız bitmeli (3090'da `cumesh ok: 6 vertices, 8 faces` yazdı). `run.bat` ile uygulamayı açın: Get started sayfasının "Your computer" bölümünde "No 3D model can be made on this card" uyarısı **olmamalı**.
+5. Kalan adımlar (modeller, Hugging Face) Adım 5'teki gibidir.
+
+**Seçenek B (denenmedi): fork'u Git ile klonlamak.** Ekteki "developer setup from Git" bölümündeki komutlarda adresi `https://github.com/CakarK/EffigyforRTX30.git` yapın. Arayüz kaynaktan derlendiği için Node.js gerekir.
+
+**Wheel'leri kendiniz derlemek isterseniz:** fork'unuzda GitHub → Actions → `wheels` → *Run workflow*. İş akışı Windows runner'da CUDA 12.8.1 ile üç paketi derler (3090 için yapılan derleme yaklaşık 25 dakika sürdü, süre runner'a göre değişir). Herkese açık repoda Actions dakikası ücretsizdir. Workflow dosyasını `gh` ile değiştirmek için token'ın `workflow` yetkisi olmalı (`gh auth refresh -h github.com -s workflow`).
+
+**Yazıdan hareket (Kimodo) için ek kurulum.** Kimodo bilgisayarınızda derlenir ve `CMake must be installed to build this package` hatası verirse:
+
+```powershell
+winget install --id Kitware.CMake -e
+winget install --id Microsoft.VisualStudio.2022.BuildTools -e --override "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --passive --norestart"
+```
+
+Kurulumdan sonra derlemeyi, derleyicinin ve CMake'in PATH'te olduğu bir ortamda yapın (winget'in PATH değişikliği açık kabuklara yansımaz). `x64 Native Tools Command Prompt` içinde ya da `vcvars64.bat` çağırıp CMake'in `bin` klasörünü PATH'e ekleyerek, uygulama klasöründe:
+
+```bat
+set UV_PROJECT_ENVIRONMENT=.venv-kimodo
+uv.exe sync --frozen --group kimodo
+```
+
+`import kimodo` bu ortamda 3090'da denendi. Kimodo modelleri için Hugging Face'te Meta Llama 3 ve DINOv3 lisanslarını onaylamanız gerekir (Adım 5, bölüm 4).
+
+**Bilinen kısıtlamalar:** yalnızca RTX 3090'da denendi. Orijinal zip'in yeni bir sürümünü üzerine açarsanız yukarıdaki 5 dosya ezilir, adımları tekrarlayın.
+
+---
+
 ## Step 1: Update the NVIDIA driver
 
 1. Open the **NVIDIA App** (or get it from nvidia.com) → Drivers → install the latest **Game Ready** or
